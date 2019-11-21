@@ -145,6 +145,7 @@ my_proteins = dplyr::mutate(my_proteins, order_counter = coalesce(start_sorting_
 my_proteins$order_counter = factor(my_proteins$order_counter, levels = c(1:(range(my_proteins$order_counter)[2])))
 
 
+
 # ggplot2 ---------------------------------------------------------------------
 
 gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = order_counter,
