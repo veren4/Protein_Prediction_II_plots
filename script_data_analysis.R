@@ -31,7 +31,7 @@ locations = read_tsv(file = "C:/Users/Verena/1_Studium/03_Aufbaustudium_Informat
                 end = X3,
                 kind = X4)
 
-my_proteins = full_join(my_proteins, locations, by = c("protein_ID" = "protein_ID"))
+my_proteins = dplyr::full_join(my_proteins, locations, by = c("protein_ID" = "protein_ID"))
 
 rm(my_protein_sequences, i, locations)
 
@@ -55,6 +55,8 @@ for(i in 1:nrow(my_proteins)){
   }
 }
 
+#######################################################################
+#######################################################################
 occupancy_NLS = table(occupied_percentage_boxes_NLS) %>% 
   as.data.frame() %>% 
   dplyr::rename(percentage_box = occupied_percentage_boxes_NLS) %>% 
@@ -79,6 +81,8 @@ perc_boxes_plot = ggplot(data = occupancy_combined, mapping = aes(x = percentage
   scale_fill_continuous(name = "absolute occupancy")
 
 perc_boxes_plot
+#######################################################################
+#######################################################################
 
 
 # better plot with lines ------------------------------------------------------
@@ -88,8 +92,63 @@ perc_boxes_plot
 my_proteins$protein_ID = factor(my_proteins$protein_ID)
 my_proteins$kind = factor(my_proteins$kind, levels = c("NLS", "NES"))
 
-gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = protein_ID,
-                                                 xend = perc_end, yend = protein_ID)) +
+# sort the sequences
+
+kind_distinguisher = my_proteins %>% 
+  dplyr::select(protein_ID, kind) %>% 
+  dplyr::group_by(protein_ID) %>% 
+  dplyr::summarise(cases = n_distinct(kind))
+
+my_proteins = left_join(my_proteins, kind_distinguisher, by = c("protein_ID" = "protein_ID")) %>% 
+  mutate(sorter = dplyr::case_when(cases == 2    ~ "contains both",
+                                   kind == "NLS" ~ "contains excl. NLS",
+                                   kind == "NES" ~ "contains excl. NES"))
+  
+# my_proteins$sorter = factor(my_proteins$sorter, levels = c("contains excl. NLS", "contains both", "contains excl. NES"))
+
+my_proteins_NLS_sorter = filter(my_proteins, sorter == "contains excl. NLS") %>% 
+  arrange(perc_start)
+my_proteins_NLS_sorter = my_proteins_NLS_sorter %>% 
+  tibble::add_column(start_sorting_NLS = 1:nrow(my_proteins_NLS_sorter)) %>% 
+  select(protein_ID, start_sorting_NLS)
+
+next_starter = range(my_proteins_NLS_sorter$start_sorting_NLS)[2]+1
+
+my_proteins_both_sorter = filter(my_proteins, sorter == "contains both") %>% 
+  arrange(perc_start)
+my_proteins_both_sorter = my_proteins_both_sorter %>% 
+  tibble::add_column(start_sorting_both = next_starter:(next_starter + nrow(my_proteins_both_sorter)-1)) %>% 
+  select(protein_ID, start_sorting_both)
+
+next_starter2 = range(my_proteins_both_sorter$start_sorting_both)[2]+1
+
+my_proteins_NES_sorter = filter(my_proteins, sorter == "contains excl. NES") %>% 
+  arrange(perc_start)
+my_proteins_NES_sorter = my_proteins_NES_sorter %>% 
+  tibble::add_column(start_sorting_NES = next_starter2:(next_starter2 + nrow(my_proteins_NES_sorter)-1)) %>% 
+  select(protein_ID, start_sorting_NES)
+
+my_proteins = dplyr::left_join(my_proteins, my_proteins_NES_sorter, by = c("protein_ID" = "protein_ID"))
+my_proteins = dplyr::left_join(my_proteins, my_proteins_NLS_sorter, by = c("protein_ID" = "protein_ID"))
+my_proteins = dplyr::left_join(my_proteins, my_proteins_both_sorter, by = c("protein_ID" = "protein_ID"))
+
+# combine the 3 columns into one ----------------------------------------------
+
+# backup = my_proteins
+# my_proteins = backup
+
+my_proteins = dplyr::mutate(my_proteins, order_counter = coalesce(start_sorting_NLS,
+                                                             start_sorting_both,
+                                                             start_sorting_NES)) %>% 
+  dplyr::select(-start_sorting_NLS, -start_sorting_both, -start_sorting_NES)
+
+my_proteins$order_counter = factor(my_proteins$order_counter, levels = c(1:(range(my_proteins$order_counter)[2])))
+
+
+# ggplot2 ---------------------------------------------------------------------
+
+gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = order_counter,
+                                                 xend = perc_end, yend = order_counter)) +
   geom_segment(mapping = aes(color = kind)) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
