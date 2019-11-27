@@ -78,13 +78,24 @@ my_proteins = my_proteins %>%
                    kind == "NES" ~ "NES",
                    kind == "NLS" ~ "NLS"))
 
-start_sorter = select(my_proteins, protein_ID, start) %>% 
+start_sorter = select(my_proteins, protein_ID, perc_start) %>% 
   group_by(protein_ID) %>% 
-  summarise(first_start = min(start))
+  summarise(first_start = min(perc_start))
 
 my_proteins = left_join(my_proteins, start_sorter, by = c("protein_ID" = "protein_ID"))
 
 my_proteins$final_kind_sorter = factor(my_proteins$final_kind_sorter, levels = c("NLS", "both", "NES"))
+
+# sort by first_start within the 3 kind groups --------------------------------
+
+NLS_orderer = dplyr::filter(my_proteins, final_kind_sorter == "NLS") %>% 
+  
+  arrange(first_start)
+
+########### here lieth the problem!!!!!!!! ##################
+# Du musst innerhalb der facet sortieren, und dabei berücksichtigen, dass später
+# NxS eines Proteins innerhalb einer Zeile sind.
+
 
 
 # ggplot2 ---------------------------------------------------------------------
