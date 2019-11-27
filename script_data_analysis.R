@@ -63,10 +63,35 @@ my_proteins$protein_ID = factor(my_proteins$protein_ID)
 my_proteins$kind = factor(my_proteins$kind, levels = c("NLS", "NES"))
 
 
+# backup = my_proteins
+my_proteins = backup
+
+my_proteins_kinder = my_proteins %>% 
+  select(protein_ID, kind) %>% 
+  group_by(protein_ID) %>% 
+  summarise(signal_cases = length(unique(kind)))
+
+my_proteins = left_join(my_proteins, my_proteins_kinder, by = c("protein_ID" = "protein_ID"))
+
+my_proteins = my_proteins %>% 
+  mutate(final_kind_sorter = case_when(signal_cases == 2 ~ "both",
+                   kind == "NES" ~ "NES",
+                   kind == "NLS" ~ "NLS"))
+
+start_sorter = select(my_proteins, protein_ID, start) %>% 
+  group_by(protein_ID) %>% 
+  summarise(first_start = min(start))
+
+my_proteins = left_join(my_proteins, start_sorter, by = c("protein_ID" = "protein_ID"))
+
+my_proteins$final_kind_sorter = factor(my_proteins$final_kind_sorter, levels = c("NLS", "both", "NES"))
+
+
 # ggplot2 ---------------------------------------------------------------------
 
 gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = protein_ID,
                                                  xend = perc_end, yend = protein_ID)) +
+  facet_grid(rows = vars(final_kind_sorter)) +
   geom_segment(mapping = aes(color = kind)) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
@@ -75,7 +100,7 @@ gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = protein_ID,
         text = element_text(size=14)) +
   ylab("protein sequence") +
   xlab("relative protein sequence position [%]") +
-  scale_color_manual(values = c("#37c837", "#ff7f0e"),   # What are the actual colors?
+  scale_color_manual(values = c("#37c837", "#ff7f0e"),
                      name = element_blank())
 
 gantt
