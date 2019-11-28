@@ -64,7 +64,7 @@ my_proteins$kind = factor(my_proteins$kind, levels = c("NLS", "NES"))
 
 
 # backup = my_proteins
-my_proteins = backup
+# my_proteins = backup
 
 my_proteins_kinder = my_proteins %>% 
   select(protein_ID, kind) %>% 
@@ -115,3 +115,28 @@ gantt = ggplot(data = my_proteins, mapping = aes(x = perc_start, y = protein_ID,
                      name = element_blank())
 
 gantt
+
+
+
+# plot separately -------------------------------------------------------------
+
+NLS_plot_input = filter(my_proteins, final_kind_sorter == "NLS")
+NLS_plot_input$perc_start = factor(NLS_plot_input$perc_start, levels = order(NLS_plot_input$first_start))
+
+NLS_gantt = ggplot(data = NLS_plot_input, mapping = aes(x = perc_start, y = protein_ID,
+                                                 xend = perc_end, yend = protein_ID)) +
+  geom_segment(mapping = aes(color = kind)) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.key = element_blank(),
+        panel.background = element_blank(),
+        text = element_text(size=14)) +
+  ylab("protein sequence") +
+  xlab("relative protein sequence position [%]") +
+  scale_color_manual(values = c("#37c837", "#ff7f0e"),
+                     name = element_blank())
+
+NLS_gantt
+
+
+
